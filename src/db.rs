@@ -1,24 +1,12 @@
-use axum::{
-    extract::{FromRef, FromRequestParts},
-    http::{StatusCode, request::Parts},
-};
 use sqlx::PgPool;
+use sqlx::postgres::PgPoolOptions;
+use std::time::Duration;
 
-pub struct DatabaseConnection(pub(crate) sqlx::pool::PoolConnection<sqlx::Postgres>);
-
-impl<S> FromRequestParts<S> for DatabaseConnection
-where
-    PgPool: FromRef<S>,
-    S: Send + Sync,
-{
-    type Rejection = (StatusCode, String);
-
-    async fn from_request_parts(_parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
-        let pool = PgPool::from_ref(state);
-        let conn = pool
-            .acquire()
-            .await
-            .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
-        Ok(Self(conn))
-    }
+pub async fn create_pool(url: &str) -> PgPool {
+    PgPoolOptions::new()
+        .max_connections(10)
+        .acquire_timeout(Duration::from_secs(5))
+        .connect(url)
+        .await
+        .expect("Failed to connect to database")
 }

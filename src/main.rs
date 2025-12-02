@@ -1,9 +1,9 @@
+mod config;
 mod db;
 mod error;
 mod routes;
 
 use sqlx::PgPool;
-use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tracing::info;
 
@@ -22,18 +22,16 @@ async fn main() -> Result {
         .with_env_filter(tracing_subscriber::EnvFilter::from_default_env())
         .init();
 
-    info!("Starting the application...");
+    let config = config::Config::from_env();
+    info!("Starting server at http://{}/", config.server_addr);
 
-    let pool = db::create_pool().await;
+    let pool = db::create_pool(&config.database_url).await;
     info!("Database connected");
 
     let state = AppState { pool };
     let app = routes::create_router(state);
 
-    let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    info!("Server running at http://{addr}/");
-
-    let listener = TcpListener::bind(addr).await?;
+    let listener = TcpListener::bind(config.server_addr).await?;
     axum::serve(listener, app).await?;
 
     Ok(())
