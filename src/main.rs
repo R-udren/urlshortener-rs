@@ -1,3 +1,4 @@
+mod db;
 mod error;
 mod routes;
 use std::net::SocketAddr;
