@@ -1,11 +1,18 @@
 mod db;
 mod error;
 mod routes;
-use std::net::SocketAddr;
 
-pub use error::{Error, Result};
+use sqlx::PgPool;
+use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tracing::info;
+
+pub use error::{Error, Result};
+
+#[derive(Clone)]
+pub struct AppState {
+    pub pool: PgPool,
+}
 
 #[tokio::main]
 async fn main() -> Result {
@@ -16,10 +23,15 @@ async fn main() -> Result {
         .init();
 
     info!("Starting the application...");
-    let app = routes::create_router();
+
+    let pool = db::create_pool().await;
+    info!("Database connected");
+
+    let state = AppState { pool };
+    let app = routes::create_router(state);
 
     let addr = SocketAddr::from(([127, 0, 0, 1], 3000));
-    info!("By visiting http://{addr}/ you should see the API documentation");
+    info!("Server running at http://{addr}/");
 
     let listener = TcpListener::bind(addr).await?;
     axum::serve(listener, app).await?;
